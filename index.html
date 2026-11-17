@@ -1,0 +1,1481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flowsmith</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: full-bleed node editor. Palette left, infinite dotted canvas centre, inspector right, run log docked under the canvas. */
+:root {
+  --bg: #e9ece6;
+  --dot: #c3c9bf;
+  --panel: #fbfcf9;
+  --panel-2: #f1f4ee;
+  --line: #d6dbd1;
+  --ink: #1a201c;
+  --muted: #5d685f;
+  --accent: #2a5bd7;
+  --accent-ink: #ffffff;
+  --edge: #8c968e;
+  --trigger: #c8711d;
+  --action: #2a5bd7;
+  --logic: #a83a87;
+  --data: #19806f;
+  --ok: #2b8a4b;
+  --err: #c43a3a;
+  --warn: #a8740f;
+  --shadow: rgba(26, 32, 28, .08);
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --font-display: "Bricolage Grotesque", "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111513; --dot: #283029; --panel: #171c19; --panel-2: #1e2420; --line: #2b332d;
+    --ink: #e3e8e3; --muted: #93a096; --accent: #7398ff; --accent-ink: #0d1322; --edge: #5c675f;
+    --trigger: #f0a24f; --action: #7398ff; --logic: #e070c2; --data: #3cc2ab;
+    --ok: #5cc47e; --err: #f06c6c; --warn: #e2ad45; --shadow: rgba(0, 0, 0, .35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111513; --dot: #283029; --panel: #171c19; --panel-2: #1e2420; --line: #2b332d;
+  --ink: #e3e8e3; --muted: #93a096; --accent: #7398ff; --accent-ink: #0d1322; --edge: #5c675f;
+  --trigger: #f0a24f; --action: #7398ff; --logic: #e070c2; --data: #3cc2ab;
+  --ok: #5cc47e; --err: #f06c6c; --warn: #e2ad45; --shadow: rgba(0, 0, 0, .35);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font-ui); overflow: hidden; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+[hidden] { display: none !important; }
+
+.app { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100%; }
+
+/* ---------- top bar ---------- */
+.top {
+  display: flex; align-items: center; gap: 10px;
+  padding-block: 8px;
+  padding-left: max(14px, env(safe-area-inset-left, 0px));
+  padding-right: max(14px, env(safe-area-inset-right, 0px));
+  background: var(--panel); border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+.brand { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-weight: 700; font-size: 19px; letter-spacing: -.01em; white-space: nowrap; }
+.brand svg { flex: none; }
+.wf-name {
+  min-width: 0; width: 240px; max-width: 30vw; border: 1px solid transparent; background: transparent; border-radius: 6px;
+  padding: 5px 8px; font-weight: 500;
+}
+.wf-name:hover, .wf-name:focus { border-color: var(--line); background: var(--panel-2); }
+.top .spacer { flex: 1; }
+.tb { display: flex; gap: 6px; align-items: center; overflow-x: auto; scrollbar-width: none; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  border: 1px solid var(--line); background: var(--panel); border-radius: 7px; padding: 6px 11px; font-weight: 500; font-size: 13px;
+}
+.btn:hover { background: var(--panel-2); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover { filter: brightness(1.07); }
+.btn.primary[disabled] { opacity: .7; cursor: progress; }
+.btn .kbd { font-family: var(--font-mono); font-size: 11px; opacity: .75; }
+.only-narrow { display: none; }
+
+/* ---------- main grid ---------- */
+.main { display: grid; grid-template-columns: 250px minmax(0, 1fr) auto; min-height: 0; }
+
+/* palette */
+.palette { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.palette-head { padding: 12px 12px 8px; display: grid; gap: 8px; }
+.palette-head h2 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.search { width: 100%; border: 1px solid var(--line); background: var(--panel-2); border-radius: 7px; padding: 7px 10px; }
+.palette-list { overflow: auto; padding: 0 8px 16px; }
+.pgroup { margin-top: 10px; }
+.pgroup h3 { margin: 0 6px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.pitem {
+  display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: center; width: 100%; text-align: left;
+  border: 1px solid transparent; background: none; border-radius: 8px; padding: 6px; user-select: none;
+}
+.pitem:hover, .pitem:focus-visible { background: var(--panel-2); border-color: var(--line); }
+.pitem .t, .pitem .d { display: block; }
+.pitem .t { font-weight: 500; font-size: 13px; }
+.pitem .d { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.glyph {
+  --c: var(--action);
+  display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; flex: none;
+  font: 600 10px/1 var(--font-mono); letter-spacing: .02em;
+  color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
+}
+.cat-trigger { --c: var(--trigger); }
+.cat-action { --c: var(--action); }
+.cat-logic { --c: var(--logic); }
+.cat-data { --c: var(--data); }
+
+/* stage + canvas */
+.stage { display: grid; grid-template-rows: minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
+#canvas {
+  position: relative; overflow: hidden; touch-action: none; cursor: grab;
+  background-color: var(--bg);
+  background-image: radial-gradient(circle, var(--dot) 1.15px, transparent 1.4px);
+  background-size: 22px 22px;
+}
+#canvas.panning { cursor: grabbing; }
+#world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+#edges { position: absolute; left: 0; top: 0; width: 1px; height: 1px; overflow: visible; }
+.edge, .edge-temp, .edge-label { pointer-events: none; }
+.edge { fill: none; stroke: var(--edge); stroke-width: 2; }
+.edge.has-data { stroke: var(--ok); }
+.edge.selected { stroke: var(--accent); stroke-width: 2.5; }
+.edge-hit { fill: none; stroke: transparent; stroke-width: 16; pointer-events: stroke; cursor: pointer; }
+.edge-hit:hover + .edge { stroke: var(--accent); }
+.edge-temp { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 5; }
+.edge-label rect { fill: var(--panel); stroke: var(--line); }
+.edge-label text { fill: var(--muted); font: 500 11px var(--font-mono); }
+.edge-del { cursor: pointer; }
+.edge-del circle { fill: var(--panel); stroke: var(--accent); stroke-width: 1.5; }
+.edge-del path { stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; }
+
+.node {
+  --c: var(--action);
+  position: absolute; width: 212px; display: flex; align-items: center; gap: 10px; padding: 0 14px;
+  background: var(--panel); border: 1.5px solid var(--line); border-radius: 10px;
+  box-shadow: 0 1px 2px var(--shadow), 0 6px 18px var(--shadow);
+  cursor: pointer; user-select: none;
+}
+.node.cat-trigger { border-radius: 34px 10px 10px 34px; }
+.node:hover { border-color: color-mix(in srgb, var(--c) 55%, var(--line)); }
+.node.selected { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent), 0 6px 18px var(--shadow); }
+.node.st-success { border-color: var(--ok); }
+.node.st-error { border-color: var(--err); }
+.node.st-skipped { opacity: .55; }
+.node.st-running { border-color: var(--accent); animation: pulse 0.9s ease-in-out infinite; }
+.node.disabled { opacity: .45; border-style: dashed; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 18%, transparent); } }
+.node-text { min-width: 0; }
+.node-name { font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.node-type { font-size: 11.5px; color: var(--muted); }
+.badge {
+  position: absolute; top: -10px; right: 10px; display: inline-flex; align-items: center; gap: 4px;
+  font: 600 10.5px/1 var(--font-mono); padding: 3px 7px; border-radius: 99px; background: var(--panel);
+  border: 1px solid currentColor;
+}
+.badge.ok { color: var(--ok); }
+.badge.err { color: var(--err); }
+.badge.skip { color: var(--muted); }
+.port {
+  position: absolute; width: 14px; height: 14px; border-radius: 50%; transform: translateY(-50%);
+  background: var(--panel); border: 2px solid var(--edge); z-index: 2;
+}
+.port.in { left: -8px; }
+.port.out { right: -8px; cursor: crosshair; }
+.port:hover, .port.hot { border-color: var(--accent); background: var(--accent); }
+.port-label {
+  position: absolute; left: calc(100% + 12px); transform: translateY(-115%);
+  font: 500 10.5px var(--font-mono); color: var(--muted); white-space: nowrap; pointer-events: none;
+}
+
+.zoom { position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); bottom: 12px; display: flex; gap: 4px; }
+.zoom .btn { padding: 5px 9px; min-width: 32px; justify-content: center; }
+.zoom .pct { font: 500 12px var(--font-mono); color: var(--muted); align-self: center; padding: 0 6px; font-variant-numeric: tabular-nums; }
+.hint { position: absolute; right: 14px; bottom: 14px; font-size: 12px; color: var(--muted); pointer-events: none; text-align: right; }
+.hint kbd { font: 500 11px var(--font-mono); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; background: var(--panel); }
+
+/* run log */
+.log { background: var(--panel); border-top: 1px solid var(--line); display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.log-head { display: flex; align-items: center; gap: 10px; padding: 6px 12px; }
+.log-head h2 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.log-head .sum { font-size: 12px; color: var(--muted); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.log-body { height: 150px; overflow: auto; padding: 0 12px 10px; font: 12px/1.6 var(--font-mono); }
+.log.collapsed .log-body { display: none; }
+.log-line { display: grid; grid-template-columns: 72px 54px minmax(0, 1fr); gap: 8px; }
+.log-line .ts { color: var(--muted); font-variant-numeric: tabular-nums; }
+.log-line .lv-ok { color: var(--ok); } .log-line .lv-err { color: var(--err); } .log-line .lv-info { color: var(--accent); } .log-line .lv-skip { color: var(--muted); }
+.log-line .msg { white-space: pre-wrap; word-break: break-word; }
+
+/* inspector */
+.inspector { width: 390px; background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.insp-head { display: flex; align-items: center; gap: 10px; padding: 12px 12px 6px; }
+.insp-title { flex: 1; min-width: 0; }
+.insp-title input { width: 100%; border: 1px solid transparent; background: transparent; border-radius: 6px; padding: 3px 6px; margin-left: -6px; font-weight: 600; font-size: 15px; }
+.insp-title input:hover, .insp-title input:focus { border-color: var(--line); background: var(--panel-2); }
+.insp-title .sub { font-size: 12px; color: var(--muted); }
+.icon-btn { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 4px 8px; font-size: 12.5px; }
+.icon-btn:hover { background: var(--panel-2); }
+.icon-btn.danger:hover { color: var(--err); border-color: var(--err); }
+.insp-desc { margin: 0; padding: 0 14px 10px; color: var(--muted); font-size: 12.5px; }
+.tabs { display: flex; gap: 2px; padding: 0 10px; border-bottom: 1px solid var(--line); }
+.tabs button { border: 0; background: none; padding: 8px 10px; font-size: 13px; font-weight: 500; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tabs .n { font: 500 11px var(--font-mono); color: var(--muted); margin-left: 4px; }
+.insp-body { overflow: auto; padding: 14px; display: grid; gap: 14px; align-content: start; min-height: 0; flex: 1; }
+.field { display: grid; gap: 5px; }
+.field label { font-size: 12px; font-weight: 600; }
+.field .help { font-size: 12px; color: var(--muted); }
+.field input[type="text"], .field input[type="number"], .field select, .field textarea {
+  width: 100%; border: 1px solid var(--line); background: var(--panel-2); border-radius: 7px; padding: 7px 9px;
+}
+.field textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+.field textarea.mono, .field input.mono { font: 12.5px/1.55 var(--font-mono); }
+.field textarea.bad { border-color: var(--err); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+.tip { font-size: 12px; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: 8px 10px; }
+.tip code, .help code { font: 11.5px var(--font-mono); background: var(--panel-2); padding: 1px 4px; border-radius: 4px; color: var(--ink); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.chip { border: 1px solid var(--line); background: var(--panel); border-radius: 99px; padding: 3px 10px; font-size: 12px; }
+.chip[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.chips .grow { flex: 1; }
+.empty { color: var(--muted); font-size: 13px; padding: 18px 4px; text-align: center; }
+.errbox { border: 1px solid var(--err); color: var(--err); background: color-mix(in srgb, var(--err) 7%, transparent); border-radius: 8px; padding: 10px 12px; font-size: 13px; white-space: pre-wrap; word-break: break-word; }
+.meta { font: 12px var(--font-mono); color: var(--muted); }
+pre.json { margin: 0; font: 12px/1.55 var(--font-mono); white-space: pre-wrap; word-break: break-word; }
+.j-k { color: var(--logic); } .j-s { color: var(--data); } .j-n { color: var(--trigger); } .j-b { color: var(--accent); }
+.tablewrap { overflow: auto; border: 1px solid var(--line); border-radius: 8px; max-height: 60vh; }
+table.data { border-collapse: collapse; font-size: 12px; width: max-content; min-width: 100%; }
+table.data th, table.data td { padding: 5px 9px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+table.data th { position: sticky; top: 0; background: var(--panel-2); font-weight: 600; font-family: var(--font-mono); font-size: 11.5px; }
+table.data td.num { font-variant-numeric: tabular-nums; text-align: right; }
+table.data td.idx { color: var(--muted); font-family: var(--font-mono); }
+
+/* popovers + modal */
+.popover {
+  position: fixed; z-index: 40; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 10px 40px var(--shadow), 0 2px 6px var(--shadow); width: 300px; max-width: calc(100vw - 24px); max-height: 60vh; display: flex; flex-direction: column;
+}
+.popover .pop-head { padding: 10px; border-bottom: 1px solid var(--line); }
+.popover .pop-list { overflow: auto; padding: 6px; }
+.tpl { display: grid; gap: 2px; width: 100%; text-align: left; border: 1px solid transparent; background: none; border-radius: 8px; padding: 8px 10px; }
+.tpl:hover, .tpl:focus-visible { background: var(--panel-2); border-color: var(--line); }
+.tpl b { font-weight: 600; font-size: 13.5px; }
+.tpl span { font-size: 12px; color: var(--muted); }
+.scrim { position: fixed; inset: 0; z-index: 50; background: color-mix(in srgb, var(--ink) 35%, transparent); display: grid; place-items: center; padding: 16px; }
+.modal { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; width: min(640px, 100%); max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px var(--shadow); }
+.modal h2 { margin: 0; padding: 14px 16px 4px; font-family: var(--font-display); font-size: 19px; }
+.modal p { margin: 0; padding: 0 16px 10px; color: var(--muted); font-size: 13px; }
+.modal textarea { margin: 0 16px; min-height: 280px; flex: 1; border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 10px; font: 12px/1.5 var(--font-mono); resize: vertical; }
+.modal .foot { display: flex; gap: 8px; justify-content: flex-end; align-items: center; padding: 12px 16px; flex-wrap: wrap; }
+.modal .foot .note { flex: 1; font-size: 12.5px; color: var(--muted); min-width: 0; }
+.modal .foot .note.err { color: var(--err); }
+.toast {
+  position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 60;
+  background: var(--ink); color: var(--panel); padding: 8px 14px; border-radius: 8px; font-size: 13px; max-width: calc(100vw - 32px);
+  box-shadow: 0 8px 24px var(--shadow);
+}
+
+@media (max-width: 900px) {
+  .only-narrow { display: inline-flex; }
+  .hide-narrow { display: none; }
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .wf-name { width: auto; flex: 1; max-width: none; }
+  .top .spacer { display: none; }
+  .run-label { display: none; }
+  .palette {
+    position: fixed; z-index: 30; left: 0; top: 0; bottom: 0; width: min(300px, 86vw);
+    padding-top: env(safe-area-inset-top, 0px); padding-left: env(safe-area-inset-left, 0px);
+    transform: translateX(-105%); transition: transform .2s ease; box-shadow: 0 0 40px var(--shadow);
+  }
+  .palette.open { transform: none; }
+  .inspector {
+    position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; width: auto; height: 64%;
+    border-left: 0; border-top: 1px solid var(--line); border-radius: 14px 14px 0 0; box-shadow: 0 -10px 40px var(--shadow);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
+  }
+  .hint { display: none; }
+  .log-body { height: 110px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .node.st-running { animation: none; }
+  .palette { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <button class="btn only-narrow" id="btn-palette" aria-controls="palette">+ Nodes</button>
+    <div class="brand">
+      <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 7 C 12 7, 12 17, 18 17" fill="none" stroke="var(--edge)" stroke-width="2"/>
+        <path d="M6 7 C 12 7, 12 7, 18 7" fill="none" stroke="var(--edge)" stroke-width="2"/>
+        <rect x="1.5" y="3.5" width="7" height="7" rx="2" fill="var(--trigger)"/>
+        <rect x="15.5" y="3.5" width="7" height="7" rx="2" fill="var(--accent)"/>
+        <rect x="15.5" y="13.5" width="7" height="7" rx="2" fill="var(--data)"/>
+      </svg>
+      <span class="hide-narrow">Flowsmith</span>
+    </div>
+    <input class="wf-name" id="wf-name" aria-label="Workflow name" spellcheck="false">
+    <div class="spacer"></div>
+    <div class="tb">
+      <button class="btn" id="btn-templates" aria-haspopup="true">Templates</button>
+      <button class="btn hide-narrow" id="btn-import">Import</button>
+      <button class="btn hide-narrow" id="btn-export">Export</button>
+      <button class="btn hide-narrow" id="btn-undo" title="Undo (Ctrl+Z)">Undo</button>
+      <button class="btn primary" id="btn-run" title="Execute workflow (Ctrl+Enter)">
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 1.5v9l8-4.5z" fill="currentColor"/></svg>
+        <span class="run-label">Execute workflow</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="main">
+    <aside class="palette" id="palette" aria-label="Node library">
+      <div class="palette-head">
+        <h2>Node library</h2>
+        <input class="search" id="palette-search" type="search" placeholder="Search nodes" aria-label="Search nodes">
+      </div>
+      <div class="palette-list" id="palette-list"></div>
+    </aside>
+
+    <section class="stage">
+      <div id="canvas" aria-label="Workflow canvas">
+        <div id="world">
+          <svg id="edges"></svg>
+          <div id="nodes"></div>
+        </div>
+        <div class="zoom">
+          <button class="btn" id="zoom-out" aria-label="Zoom out">−</button>
+          <span class="pct" id="zoom-pct">100%</span>
+          <button class="btn" id="zoom-in" aria-label="Zoom in">+</button>
+          <button class="btn" id="zoom-fit">Fit</button>
+        </div>
+        <div class="hint">Drag from a <b>●</b> output to connect · drop on empty space to add a node<br>
+          <kbd>Ctrl</kbd>+scroll zoom · <kbd>Del</kbd> remove · <kbd>Ctrl</kbd>+<kbd>D</kbd> duplicate</div>
+      </div>
+      <div class="log" id="log">
+        <div class="log-head">
+          <h2>Execution log</h2>
+          <span class="sum" id="log-sum">Not run yet</span>
+          <button class="icon-btn" id="log-clear">Clear</button>
+          <button class="icon-btn" id="log-toggle" aria-expanded="true">Hide</button>
+        </div>
+        <div class="log-body" id="log-body"></div>
+      </div>
+    </section>
+
+    <aside class="inspector" id="inspector" hidden aria-label="Node settings"></aside>
+  </div>
+</div>
+
+<div class="popover" id="pop-templates" hidden role="menu"></div>
+<div class="popover" id="pop-quick" hidden>
+  <div class="pop-head"><input class="search" id="quick-search" type="search" placeholder="Add a node…" aria-label="Search nodes to add"></div>
+  <div class="pop-list" id="quick-list"></div>
+</div>
+<div class="scrim" id="modal" hidden></div>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script>
+"use strict";
+/* ================================================================
+   Flowsmith: a small, self-contained workflow automation editor.
+   Workflows are graphs of nodes; each node receives a list of items
+   ({ json: {...} }) and emits one list per output port.
+   ================================================================ */
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const uid = () => Math.random().toString(36).slice(2, 9);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const clone = v => (typeof structuredClone === "function" ? structuredClone(v) : JSON.parse(JSON.stringify(v)));
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const NODE_W = 212;
+const STORE_KEY = "flowsmith.workflow.v1";
+
+/* ---------------- expressions ---------------- */
+const fnCache = new Map();
+function compileExpr(code) {
+  if (!fnCache.has(code)) {
+    fnCache.set(code, new Function("$json", "$index", "$items", "$node", "$now", `"use strict"; return (${code});`));
+  }
+  return fnCache.get(code);
+}
+function evalExpr(code, c) {
+  try {
+    return compileExpr(code)(c.json ?? {}, c.index ?? 0, c.items ?? [], c.node ?? {}, new Date());
+  } catch (err) {
+    throw new Error(`Expression "${code.trim()}" failed: ${err.message}`);
+  }
+}
+function resolve(val, c) {
+  if (typeof val !== "string" || !val.includes("{{")) return val;
+  const whole = val.match(/^\s*\{\{([\s\S]+?)\}\}\s*$/);
+  if (whole) return evalExpr(whole[1], c);
+  return val.replace(/\{\{([\s\S]+?)\}\}/g, (_, e) => {
+    const v = evalExpr(e, c);
+    return v !== null && typeof v === "object" ? JSON.stringify(v) : String(v);
+  });
+}
+const stripBraces = s => String(s || "").trim().replace(/^\{\{([\s\S]*)\}\}$/, "$1").trim() || "false";
+function coerce(v) {
+  if (typeof v !== "string") return v;
+  if (/^-?\d+(\.\d+)?$/.test(v.trim())) return Number(v);
+  if (v === "true") return true;
+  if (v === "false") return false;
+  if (v === "null") return null;
+  return v;
+}
+function getPath(obj, path) {
+  if (!path) return obj;
+  return String(path).split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
+}
+function setPath(obj, path, value) {
+  const keys = String(path).split(".");
+  let o = obj;
+  keys.slice(0, -1).forEach(k => { if (typeof o[k] !== "object" || o[k] === null) o[k] = {}; o = o[k]; });
+  o[keys[keys.length - 1]] = value;
+}
+function normalizeItems(arr) {
+  if (arr == null) return [];
+  if (!Array.isArray(arr)) arr = [arr];
+  return arr.map(x => {
+    if (x && typeof x === "object" && !Array.isArray(x) && "json" in x && Object.keys(x).length === 1) return { json: x.json };
+    if (x && typeof x === "object" && !Array.isArray(x)) return { json: x };
+    return { json: { value: x } };
+  });
+}
+function parseLines(text, sep) {
+  return String(text || "").split("\n").map(l => l.trim()).filter(l => l && !l.startsWith("#")).map(l => {
+    const i = l.indexOf(sep);
+    return i < 0 ? null : [l.slice(0, i).trim(), l.slice(i + 1).trim()];
+  }).filter(Boolean);
+}
+
+/* ---------------- sample data ---------------- */
+function rng(seed) {
+  let a = seed >>> 0;
+  return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const COMPANIES = ["Northwind Labs", "Acme Freight", "Bluebird Clinics", "Orbit Coffee", "Halcyon Studio", "Pinecrest Bank", "Kestrel Robotics", "Lumen Schools", "Tidewater Energy", "Juniper Legal"];
+const PEOPLE = ["Ada Okafor", "Marcus Lind", "Priya Raman", "Tomás Herrera", "Yuki Sato", "Grace Mensah", "Liam O'Neill", "Sofia Rossi", "Daniel Kim", "Amara Nwosu"];
+const TICKETS = [
+  ["Can't log in after password reset", "urgent"], ["Invoice shows wrong VAT amount", "normal"], ["Export to CSV times out", "high"],
+  ["Feature request: dark mode for reports", "low"], ["Webhook deliveries failing with 502", "urgent"], ["Need to add 15 seats to our plan", "normal"],
+  ["Mobile app crashes on photo upload", "high"], ["SSO login loops back to sign-in page", "urgent"], ["Refund for duplicate charge", "high"],
+  ["API rate limit hit every morning at 9am", "high"], ["How do I change the account owner?", "low"], ["Data missing from yesterday's sync", "high"],
+];
+function sampleData(dataset, count) {
+  const r = rng(42), n = clamp(Number(count) || 1, 1, 200), now = Date.now(), out = [];
+  for (let i = 0; i < n; i++) {
+    const pick = arr => arr[Math.floor(r() * arr.length)];
+    if (dataset === "tickets") {
+      const [subject, priority] = TICKETS[i % TICKETS.length];
+      out.push({ id: `T-${1042 + i}`, subject, priority, customer: pick(COMPANIES), requester: pick(PEOPLE),
+        channel: pick(["email", "chat", "phone", "email"]), plan: pick(["Free", "Pro", "Pro", "Enterprise"]),
+        waiting_hours: Math.round(r() * 30 * 10) / 10, created_at: new Date(now - Math.round(r() * 36e5 * 30)).toISOString() });
+    } else if (dataset === "customers") {
+      const name = PEOPLE[i % PEOPLE.length], company = COMPANIES[i % COMPANIES.length];
+      out.push({ id: 5000 + i, name, email: `${name.split(" ")[0].toLowerCase()}@${company.split(" ")[0].toLowerCase()}.com`, company,
+        plan: pick(["Free", "Pro", "Enterprise"]), mrr: Math.round(r() * 2400), country: pick(["US", "DE", "GB", "NG", "IN", "JP", "BR"]),
+        signed_up: new Date(now - Math.round(r() * 864e5 * 700)).toISOString().slice(0, 10) });
+    } else {
+      out.push({ order_id: `#${88120 + i}`, customer: pick(COMPANIES), total: Math.round(r() * 90000) / 100, currency: "USD",
+        status: pick(["paid", "paid", "refunded", "pending"]), items: 1 + Math.floor(r() * 6) });
+    }
+  }
+  return out;
+}
+
+/* ---------------- node catalogue ---------------- */
+const CATS = { trigger: "Triggers", action: "Actions", logic: "Flow", data: "Data" };
+const one = () => ["main"];
+const TYPES = {
+  manual: {
+    label: "Manual Trigger", glyph: "RUN", cat: "trigger", inputs: 0, outputs: one,
+    desc: "Starts the workflow when you click Execute workflow.", params: [],
+    run: async () => [[{ json: { triggered_at: new Date().toISOString(), mode: "manual" } }]],
+  },
+  schedule: {
+    label: "Schedule", glyph: "CRON", cat: "trigger", inputs: 0, outputs: one,
+    desc: "Runs on a timetable. In the editor it fires once when you execute.",
+    params: [
+      { key: "rule", label: "Run", type: "select", default: "Every hour", options: ["Every 15 minutes", "Every hour", "Every day at 09:00", "Every Monday at 09:00"] },
+      { key: "timezone", label: "Timezone", type: "text", default: "UTC" },
+    ],
+    run: async ({ params }) => [[{ json: { fired_at: new Date().toISOString(), rule: params.rule, timezone: params.timezone } }]],
+  },
+  webhook: {
+    label: "Webhook", glyph: "HOOK", cat: "trigger", inputs: 0, outputs: one,
+    desc: "Starts when an HTTP request arrives. Paste a sample body to test with.",
+    params: [
+      { key: "method", label: "HTTP method", type: "select", default: "POST", options: ["GET", "POST", "PUT", "PATCH"] },
+      { key: "path", label: "Path", type: "text", default: "incoming", help: "Listens at <code>/webhook/&lt;path&gt;</code>." },
+      { key: "sample", label: "Test request body (JSON)", type: "json", default: '{\n  "message": "hello"\n}', help: "An array sends one request per element." },
+    ],
+    run: async ({ params }) => {
+      const body = JSON.parse(params.sample || "{}");
+      return [(Array.isArray(body) ? body : [body]).map(b => ({ json: { method: params.method, path: `/webhook/${params.path}`, headers: { "content-type": "application/json" }, body: b } }))];
+    },
+  },
+  sample: {
+    label: "Sample Data", glyph: "DATA", cat: "data", inputs: 1, outputs: one,
+    desc: "Generates realistic example records so you can build without a live system.",
+    params: [
+      { key: "dataset", label: "Dataset", type: "select", default: "tickets", options: ["tickets", "customers", "orders"] },
+      { key: "count", label: "Number of items", type: "number", default: 8 },
+    ],
+    run: async ({ params }) => [sampleData(params.dataset, params.count).map(json => ({ json }))],
+  },
+  http: {
+    label: "HTTP Request", glyph: "HTTP", cat: "action", inputs: 1, outputs: one,
+    desc: "Calls any REST API once per incoming item. JSON responses become items.",
+    params: [
+      { key: "method", label: "Method", type: "select", default: "GET", options: ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+      { key: "url", label: "URL", type: "text", default: "https://jsonplaceholder.typicode.com/users", mono: true, help: "Expressions work here, e.g. <code>https://api.example.com/users/{{ $json.id }}</code>" },
+      { key: "headers", label: "Headers (JSON)", type: "json", default: "{}" },
+      { key: "body", label: "Body (JSON, for POST/PUT/PATCH)", type: "code", default: "", rows: 4 },
+      { key: "split", label: "Split array responses into separate items", type: "checkbox", default: true },
+    ],
+    run: async ({ params, items, res }) => {
+      const out = [];
+      for (let i = 0; i < items.length; i++) {
+        const url = res(params.url, items[i], i);
+        const h = res(params.headers || "{}", items[i], i);
+        const headers = typeof h === "string" ? JSON.parse(h || "{}") : { ...(h || {}) };
+        const opts = { method: params.method, headers };
+        if (!["GET", "DELETE"].includes(params.method) && params.body) {
+          const b = res(params.body, items[i], i);
+          opts.body = typeof b === "string" ? b : JSON.stringify(b);
+          if (!Object.keys(headers).some(h => h.toLowerCase() === "content-type")) headers["content-type"] = "application/json";
+        }
+        let resp;
+        try { resp = await fetch(url, opts); }
+        catch (e) { throw new Error(`Couldn't reach ${url} (${e.message}). The browser blocked the request: the API may not allow cross-origin calls, or this page is running in a sandbox without network access. Run the site from your own machine to call live APIs.`); }
+        const text = await resp.text();
+        let data; try { data = JSON.parse(text); } catch { data = { body: text }; }
+        if (!resp.ok) throw new Error(`${params.method} ${url} returned ${resp.status} ${resp.statusText}`);
+        if (Array.isArray(data) && params.split) out.push(...normalizeItems(data));
+        else out.push(...normalizeItems(Array.isArray(data) ? { data } : data));
+      }
+      return [out];
+    },
+  },
+  set: {
+    label: "Edit Fields", glyph: "SET", cat: "data", inputs: 1, outputs: one,
+    desc: "Adds or changes fields on every item. One field per line.",
+    params: [
+      { key: "fields", label: "Fields", type: "code", default: "status = new\nreceived_at = {{ $now.toISOString() }}", rows: 6,
+        help: "Write <code>name = value</code>. Values can use expressions like <code>{{ $json.email.toLowerCase() }}</code>. Dots create nested fields." },
+      { key: "keepOnly", label: "Keep only the fields listed above", type: "checkbox", default: false },
+    ],
+    run: async ({ params, items, res }) => [items.map((it, i) => {
+      const json = params.keepOnly ? {} : clone(it.json);
+      for (const [k, v] of parseLines(params.fields, "=")) setPath(json, k, coerce(res(v, it, i)));
+      return { json };
+    })],
+  },
+  if: {
+    label: "If", glyph: "IF", cat: "logic", inputs: 1, outputs: () => ["true", "false"],
+    desc: "Sends each item down the true or false branch.",
+    params: [{ key: "condition", label: "Condition", type: "code", default: "$json.priority === 'urgent'", rows: 3,
+      help: "A JavaScript expression. <code>$json</code> is the current item." }],
+    run: async ({ params, items, cond }) => {
+      const t = [], f = [];
+      items.forEach((it, i) => (cond(params.condition, it, i) ? t : f).push(it));
+      return [t, f];
+    },
+  },
+  switch: {
+    label: "Switch", glyph: "SW", cat: "logic", inputs: 1,
+    outputs: p => [...parseLines(p.rules, ":").map(([k]) => k || "?"), "fallback"],
+    desc: "Routes each item to the first rule that matches. Unmatched items go to fallback.",
+    params: [{ key: "rules", label: "Rules", type: "code", default: "urgent: $json.priority === 'urgent'\nhigh: $json.priority === 'high'", rows: 5,
+      help: "One rule per line: <code>output name: expression</code>. Each line adds an output." }],
+    run: async ({ params, items, cond }) => {
+      const rules = parseLines(params.rules, ":");
+      const outs = Array.from({ length: rules.length + 1 }, () => []);
+      items.forEach((it, i) => {
+        const hit = rules.findIndex(([, expr]) => cond(expr, it, i));
+        outs[hit < 0 ? rules.length : hit].push(it);
+      });
+      return outs;
+    },
+  },
+  filter: {
+    label: "Filter", glyph: "FLT", cat: "logic", inputs: 1, outputs: one,
+    desc: "Keeps only items that match the condition.",
+    params: [{ key: "condition", label: "Keep items where", type: "code", default: "$json.plan !== 'Free'", rows: 3 }],
+    run: async ({ params, items, cond }) => [items.filter((it, i) => cond(params.condition, it, i))],
+  },
+  merge: {
+    label: "Merge", glyph: "MRG", cat: "logic", inputs: 2, outputs: one,
+    desc: "Combines two streams of items into one.",
+    params: [{ key: "mode", label: "Mode", type: "select", default: "Append", options: ["Append", "Combine by position"] }],
+    run: async ({ params, inputs }) => {
+      const [a = [], b = []] = inputs;
+      if (params.mode === "Append") return [[...a, ...b]];
+      return [Array.from({ length: Math.max(a.length, b.length) }, (_, i) => ({ json: { ...(a[i]?.json || {}), ...(b[i]?.json || {}) } }))];
+    },
+  },
+  wait: {
+    label: "Wait", glyph: "WAIT", cat: "logic", inputs: 1, outputs: one,
+    desc: "Pauses before continuing. Capped at 10 seconds in the editor.",
+    params: [{ key: "seconds", label: "Seconds", type: "number", default: 1 }],
+    run: async ({ params, items }) => { await sleep(clamp(Number(params.seconds) || 0, 0, 10) * 1000); return [items]; },
+  },
+  code: {
+    label: "Code", glyph: "JS", cat: "data", inputs: 1, outputs: one,
+    desc: "Runs your JavaScript over all items at once.",
+    params: [{ key: "code", label: "JavaScript", type: "code", rows: 12,
+      default: "// `items` holds the incoming items; each has a `json` object.\n// Return an array of items or plain objects.\nreturn items.map(item => ({\n  ...item.json,\n  processed_at: new Date().toISOString(),\n}));",
+      help: "<code>await</code> is allowed. <code>console.log</code> writes to the execution log. <code>$node['Name'].all</code> reads another node's output." }],
+    run: async ({ params, items, nodeRefs, node }) => {
+      const AsyncFn = Object.getPrototypeOf(async function () {}).constructor;
+      const cons = { log: (...a) => log("info", `${node.name}: ${a.map(x => typeof x === "object" ? JSON.stringify(x) : String(x)).join(" ")}`) };
+      cons.info = cons.warn = cons.error = cons.log;
+      const fn = new AsyncFn("items", "$node", "console", params.code || "return items;");
+      return [normalizeItems(await fn(clone(items), nodeRefs, cons))];
+    },
+  },
+  sort: {
+    label: "Sort", glyph: "SORT", cat: "data", inputs: 1, outputs: one,
+    desc: "Orders items by a field.",
+    params: [
+      { key: "field", label: "Field", type: "text", default: "name", mono: true, help: "Use dots for nested fields, e.g. <code>address.city</code>." },
+      { key: "order", label: "Order", type: "select", default: "Ascending", options: ["Ascending", "Descending"] },
+    ],
+    run: async ({ params, items }) => {
+      const dir = params.order === "Descending" ? -1 : 1;
+      return [[...items].sort((a, b) => {
+        const x = getPath(a.json, params.field), y = getPath(b.json, params.field);
+        if (typeof x === "number" && typeof y === "number") return (x - y) * dir;
+        return String(x ?? "").localeCompare(String(y ?? ""), undefined, { numeric: true }) * dir;
+      })];
+    },
+  },
+  limit: {
+    label: "Limit", glyph: "LIM", cat: "data", inputs: 1, outputs: one,
+    desc: "Keeps the first or last N items.",
+    params: [
+      { key: "max", label: "Max items", type: "number", default: 5 },
+      { key: "keep", label: "Keep", type: "select", default: "First items", options: ["First items", "Last items"] },
+    ],
+    run: async ({ params, items }) => {
+      const n = Math.max(0, Number(params.max) || 0);
+      return [params.keep === "Last items" ? items.slice(-n || items.length) : items.slice(0, n)];
+    },
+  },
+  summarize: {
+    label: "Summarize", glyph: "SUM", cat: "data", inputs: 1, outputs: one,
+    desc: "Groups items by a field and counts them, with an optional sum.",
+    params: [
+      { key: "groupBy", label: "Group by field", type: "text", default: "status", mono: true, help: "Leave empty to summarize everything into one item." },
+      { key: "sumField", label: "Also sum this field", type: "text", default: "", mono: true },
+    ],
+    run: async ({ params, items }) => {
+      const groups = new Map();
+      for (const it of items) {
+        const v = params.groupBy ? getPath(it.json, params.groupBy) : "all";
+        const key = typeof v === "object" ? JSON.stringify(v) : String(v);
+        const g = groups.get(key) || { value: v, count: 0, sum: 0 };
+        g.count++;
+        if (params.sumField) g.sum += Number(getPath(it.json, params.sumField)) || 0;
+        groups.set(key, g);
+      }
+      return [[...groups.values()].map(g => ({ json: {
+        ...(params.groupBy ? { [params.groupBy]: g.value } : {}), count: g.count,
+        ...(params.sumField ? { [`sum_${params.sumField}`]: Math.round(g.sum * 100) / 100 } : {}),
+      } }))];
+    },
+  },
+  noop: {
+    label: "Output", glyph: "OUT", cat: "action", inputs: 1, outputs: one,
+    desc: "Collects the final items so you can inspect them. Passes data through unchanged.",
+    params: [], run: async ({ items }) => [items],
+  },
+};
+
+function defaults(type) {
+  const p = {};
+  TYPES[type].params.forEach(f => (p[f.key] = f.default));
+  return p;
+}
+function mk(id, type, name, x, y, params = {}) {
+  return { id, type, name: name || TYPES[type].label, x, y, params: { ...defaults(type), ...params } };
+}
+const link = (from, to, fromPort = 0, toPort = 0) => ({ id: uid(), from, to, fromPort, toPort });
+
+/* ---------------- templates ---------------- */
+const TEMPLATES = [
+  {
+    name: "Support ticket triage",
+    desc: "Route tickets by priority, set SLAs and build a digest for the team channel.",
+    build: () => ({
+      name: "Support ticket triage",
+      nodes: [
+        mk("a", "manual", "Start", 40, 220),
+        mk("b", "sample", "Open tickets", 300, 220, { dataset: "tickets", count: 12 }),
+        mk("c", "switch", "Route by priority", 560, 220),
+        mk("d", "set", "Page on-call", 850, 60, { fields: "route = On-call pager\nsla_hours = 1\nreply_by = {{ new Date(Date.now() + 36e5).toISOString() }}" }),
+        mk("e", "set", "Tier 2 queue", 850, 230, { fields: "route = Tier 2 queue\nsla_hours = 4" }),
+        mk("f", "set", "Standard queue", 850, 400, { fields: "route = Standard queue\nsla_hours = 24" }),
+        mk("g", "summarize", "Count by route", 1140, 230, { groupBy: "route" }),
+        mk("h", "code", "Build digest", 1400, 230, { code:
+"const lines = items.map(i => `- ${i.json.route}: ${i.json.count} ticket${i.json.count === 1 ? '' : 's'}`);\nconst total = items.reduce((n, i) => n + i.json.count, 0);\nconsole.log(`Digest covers ${total} tickets`);\nreturn [{\n  channel: '#support-triage',\n  text: `Morning triage, ${total} open tickets\\n${lines.join('\\n')}`,\n  total,\n}];" }),
+        mk("i", "noop", "Post to team chat", 1660, 230),
+      ],
+      connections: [link("a", "b"), link("b", "c"), link("c", "d", 0), link("c", "e", 1), link("c", "f", 2),
+        link("d", "g"), link("e", "g"), link("f", "g"), link("g", "h"), link("h", "i")],
+    }),
+  },
+  {
+    name: "Lead scoring webhook",
+    desc: "Score inbound leads from a form, then hand hot ones to sales.",
+    build: () => ({
+      name: "Lead scoring webhook",
+      nodes: [
+        mk("a", "webhook", "New lead form", 40, 220, { path: "leads/new", sample: JSON.stringify([
+          { name: "Priya Raman", email: "priya@kestrelrobotics.com", company_size: 240, source: "demo-request" },
+          { name: "Tom Herrera", email: "tom.h@gmail.com", company_size: 3, source: "newsletter" },
+          { name: "Grace Mensah", email: "grace@pinecrestbank.com", company_size: 80, source: "pricing-page" },
+          { name: "Yuki Sato", email: "yuki@orbitcoffee.com", company_size: 12, source: "demo-request" }], null, 2) }),
+        mk("b", "code", "Score lead", 300, 220, { code:
+"return items.map(({ json }) => {\n  const lead = json.body;\n  let score = 0;\n  if (!/@(gmail|yahoo|outlook|hotmail)\\./.test(lead.email)) score += 40;\n  if (lead.company_size >= 50) score += 35;\n  if (lead.source === 'demo-request') score += 25;\n  return { ...lead, score };\n});" }),
+        mk("c", "if", "Score 60 or more?", 560, 220, { condition: "$json.score >= 60" }),
+        mk("d", "set", "Assign to sales", 840, 110, { fields: "owner = Sales\nnext_step = Book a call within 24 hours" }),
+        mk("e", "set", "Add to nurture", 840, 330, { fields: "owner = Marketing\nnext_step = Send welcome sequence to {{ $json.email }}" }),
+        mk("f", "merge", "Merge", 1110, 220),
+        mk("g", "sort", "Highest score first", 1370, 220, { field: "score", order: "Descending" }),
+        mk("h", "noop", "Sync to CRM", 1630, 220),
+      ],
+      connections: [link("a", "b"), link("b", "c"), link("c", "d", 0), link("c", "e", 1), link("d", "f", 0, 0), link("e", "f", 0, 1), link("f", "g"), link("g", "h")],
+    }),
+  },
+  {
+    name: "Fetch users from an API",
+    desc: "Call a public REST API, reshape the response and keep the top 5. Needs network access.",
+    build: () => ({
+      name: "Fetch users from an API",
+      nodes: [
+        mk("a", "manual", "Start", 40, 200),
+        mk("b", "http", "Get users", 300, 200),
+        mk("c", "set", "Pick fields", 560, 200, { keepOnly: true, fields: "name = {{ $json.name }}\nemail = {{ $json.email.toLowerCase() }}\ncity = {{ $json.address.city }}\ncompany = {{ $json.company.name }}" }),
+        mk("d", "sort", "Sort by name", 820, 200, { field: "name" }),
+        mk("e", "limit", "Top 5", 1080, 200),
+      ],
+      connections: [link("a", "b"), link("b", "c"), link("c", "d"), link("d", "e")],
+    }),
+  },
+  {
+    name: "Weekly revenue report",
+    desc: "On a schedule, total paid orders per status.",
+    build: () => ({
+      name: "Weekly revenue report",
+      nodes: [
+        mk("a", "schedule", "Every Monday", 40, 200, { rule: "Every Monday at 09:00" }),
+        mk("b", "sample", "Last week's orders", 300, 200, { dataset: "orders", count: 25 }),
+        mk("c", "summarize", "Totals by status", 560, 200, { groupBy: "status", sumField: "total" }),
+        mk("d", "sort", "Largest first", 820, 200, { field: "sum_total", order: "Descending" }),
+        mk("e", "noop", "Email finance", 1080, 200),
+      ],
+      connections: [link("a", "b"), link("b", "c"), link("c", "d"), link("d", "e")],
+    }),
+  },
+  {
+    name: "Blank workflow",
+    desc: "Start from a single trigger.",
+    build: () => ({ name: "My workflow", nodes: [mk("a", "manual", "Start", 80, 200)], connections: [] }),
+  },
+];
+
+/* ---------------- state ---------------- */
+let wf = null;
+let view = { x: 40, y: 40, z: 1 };
+let sel = { node: null, conn: null };
+let runData = {};
+let running = false;
+let inspTab = "params", dataMode = "table", portView = 0;
+const undoStack = [];
+
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(wf)); } catch { /* storage unavailable */ }
+}
+function pushHistory() {
+  undoStack.push(JSON.stringify(wf));
+  if (undoStack.length > 60) undoStack.shift();
+}
+function undo() {
+  const prev = undoStack.pop();
+  if (!prev) return toast("Nothing to undo");
+  wf = JSON.parse(prev);
+  if (sel.node && !getNode(sel.node)) sel.node = null;
+  sel.conn = null;
+  save(); renderAll();
+}
+const getNode = id => wf.nodes.find(n => n.id === id);
+const selNode = () => (sel.node ? getNode(sel.node) : null);
+
+function loadWorkflow(data) {
+  wf = { name: data.name || "Untitled workflow", nodes: [], connections: [] };
+  for (const n of data.nodes || []) {
+    if (!TYPES[n.type]) continue;
+    wf.nodes.push({ id: String(n.id), type: n.type, name: n.name || TYPES[n.type].label, x: Number(n.x) || 0, y: Number(n.y) || 0,
+      params: { ...defaults(n.type), ...(n.params || {}) }, disabled: !!n.disabled });
+  }
+  const ids = new Set(wf.nodes.map(n => n.id));
+  wf.connections = (data.connections || []).filter(c => ids.has(String(c.from)) && ids.has(String(c.to)))
+    .map(c => ({ id: c.id || uid(), from: String(c.from), to: String(c.to), fromPort: c.fromPort | 0, toPort: c.toPort | 0 }));
+  pruneConnections();
+  runData = {};
+  sel = { node: null, conn: null };
+}
+
+/* ---------------- geometry ---------------- */
+const outsOf = n => TYPES[n.type].outputs(n.params || {});
+const nodeH = n => Math.max(72, 30 * Math.max(TYPES[n.type].inputs, outsOf(n).length) + 18);
+function portPos(n, dir, i) {
+  const h = nodeH(n), count = dir === "in" ? TYPES[n.type].inputs : outsOf(n).length;
+  return { x: dir === "in" ? n.x : n.x + NODE_W, y: n.y + (h * (i + 1)) / (count + 1) };
+}
+function curve(a, b) {
+  const dx = Math.max(60, Math.abs(b.x - a.x) * 0.5);
+  return `M${a.x},${a.y} C${a.x + dx},${a.y} ${b.x - dx},${b.y} ${b.x},${b.y}`;
+}
+function curveMid(a, b) {
+  const dx = Math.max(60, Math.abs(b.x - a.x) * 0.5);
+  return { x: (a.x + 3 * (a.x + dx) + 3 * (b.x - dx) + b.x) / 8, y: (a.y + 3 * a.y + 3 * b.y + b.y) / 8 };
+}
+function pruneConnections() {
+  wf.connections = wf.connections.filter(c => {
+    const f = getNode(c.from), t = getNode(c.to);
+    return f && t && c.fromPort < outsOf(f).length && c.toPort < TYPES[t.type].inputs;
+  });
+}
+
+/* ---------------- rendering ---------------- */
+const canvas = $("#canvas"), world = $("#world"), edgesSvg = $("#edges"), nodesEl = $("#nodes");
+
+function applyView() {
+  world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.z})`;
+  const s = 22 * view.z;
+  canvas.style.backgroundSize = `${s}px ${s}px`;
+  canvas.style.backgroundPosition = `${view.x}px ${view.y}px`;
+  $("#zoom-pct").textContent = Math.round(view.z * 100) + "%";
+}
+
+function nodeHTML(n) {
+  const d = TYPES[n.type], h = nodeH(n), rd = runData[n.id], outs = outsOf(n);
+  const st = rd ? `st-${rd.status}` : "";
+  let badge = "";
+  if (rd?.status === "success") badge = `<span class="badge ok">✓ ${rd.output.reduce((s, o) => s + o.length, 0)}</span>`;
+  else if (rd?.status === "error") badge = `<span class="badge err">! error</span>`;
+  else if (rd?.status === "skipped") badge = `<span class="badge skip">skipped</span>`;
+  const ins = Array.from({ length: d.inputs }, (_, i) =>
+    `<div class="port in" data-port="${i}" style="top:${(h * (i + 1)) / (d.inputs + 1)}px" title="Input${d.inputs > 1 ? " " + (i + 1) : ""}"></div>`).join("");
+  const os = outs.map((label, i) => {
+    const top = (h * (i + 1)) / (outs.length + 1);
+    return `<div class="port out" data-port="${i}" style="top:${top}px" title="Drag to connect"></div>` +
+      (outs.length > 1 ? `<span class="port-label" style="top:${top}px">${esc(label)}</span>` : "");
+  }).join("");
+  return `<div class="node cat-${d.cat} ${st} ${sel.node === n.id ? "selected" : ""} ${n.disabled ? "disabled" : ""}" data-id="${esc(n.id)}"
+    style="left:${n.x}px;top:${n.y}px;height:${h}px" role="button" tabindex="0" aria-label="${esc(n.name)}, ${esc(d.label)}">
+    <div class="glyph cat-${d.cat}">${d.glyph}</div>
+    <div class="node-text"><div class="node-name">${esc(n.name)}</div><div class="node-type">${esc(d.label)}</div></div>
+    ${badge}${ins}${os}</div>`;
+}
+function renderNodes() { nodesEl.innerHTML = wf.nodes.map(nodeHTML).join(""); }
+function renderNode(n) {
+  const el = nodesEl.querySelector(`.node[data-id="${CSS.escape(n.id)}"]`);
+  if (!el) return renderNodes();
+  el.outerHTML = nodeHTML(n);
+}
+let tempEdge = null;
+function renderEdges() {
+  let html = "";
+  for (const c of wf.connections) {
+    const f = getNode(c.from), t = getNode(c.to);
+    if (!f || !t) continue;
+    const a = portPos(f, "out", c.fromPort), b = portPos(t, "in", c.toPort);
+    const items = runData[c.from]?.status === "success" ? runData[c.from].output[c.fromPort]?.length : undefined;
+    const isSel = sel.conn === c.id;
+    html += `<path class="edge-hit" data-conn="${c.id}" d="${curve(a, b)}"/><path class="edge ${items ? "has-data" : ""} ${isSel ? "selected" : ""}" d="${curve(a, b)}"/>`;
+    const m = curveMid(a, b);
+    if (isSel) {
+      html += `<g class="edge-del" data-del="${c.id}" transform="translate(${m.x},${m.y})"><circle r="10"/><path d="M-4,-4 L4,4 M4,-4 L-4,4"/><title>Remove connection</title></g>`;
+    } else if (items !== undefined) {
+      const label = `${items} item${items === 1 ? "" : "s"}`, w = label.length * 6.7 + 12;
+      html += `<g class="edge-label" transform="translate(${m.x},${m.y})"><rect x="${-w / 2}" y="-9" width="${w}" height="18" rx="9"/><text text-anchor="middle" y="4">${label}</text></g>`;
+    }
+  }
+  if (tempEdge) html += `<path class="edge-temp" d="${curve(tempEdge.a, tempEdge.b)}"/>`;
+  edgesSvg.innerHTML = html;
+}
+function renderAll() {
+  $("#wf-name").value = wf.name;
+  renderNodes(); renderEdges(); renderInspector(); applyView();
+}
+
+/* ---------------- palette ---------------- */
+function paletteHTML(filter, forQuick) {
+  const q = (filter || "").toLowerCase().trim();
+  let html = "";
+  for (const [cat, title] of Object.entries(CATS)) {
+    const list = Object.entries(TYPES).filter(([k, d]) => d.cat === cat && (!forQuick || d.inputs > 0) &&
+      (!q || (d.label + " " + d.desc + " " + k).toLowerCase().includes(q)));
+    if (!list.length) continue;
+    html += `<div class="pgroup"><h3>${title}</h3>` + list.map(([k, d]) =>
+      `<button class="pitem" data-type="${k}" draggable="${!forQuick}" title="${esc(d.desc)}">
+        <span class="glyph cat-${d.cat}">${d.glyph}</span>
+        <span style="min-width:0"><span class="t">${esc(d.label)}</span><span class="d">${esc(d.desc)}</span></span></button>`).join("") + `</div>`;
+  }
+  return html || `<div class="empty">No nodes match “${esc(filter)}”.</div>`;
+}
+function renderPalette() { $("#palette-list").innerHTML = paletteHTML($("#palette-search").value, false); }
+
+function addNode(type, x, y, connectFrom) {
+  pushHistory();
+  const n = mk(uid(), type, null, Math.round(x / 10) * 10, Math.round(y / 10) * 10);
+  const base = n.name; let k = 2;
+  while (wf.nodes.some(o => o.name === n.name)) n.name = `${base} ${k++}`;
+  wf.nodes.push(n);
+  if (connectFrom && TYPES[type].inputs > 0) wf.connections.push(link(connectFrom.id, n.id, connectFrom.port, 0));
+  sel = { node: n.id, conn: null };
+  inspTab = "params";
+  save(); renderAll();
+  return n;
+}
+function addNodeSmart(type) {
+  const s = selNode(), d = TYPES[type];
+  if (s && d.inputs > 0 && outsOf(s).length) {
+    return addNode(type, s.x + NODE_W + 70, s.y, { id: s.id, port: 0 });
+  }
+  const r = canvas.getBoundingClientRect();
+  return addNode(type, (r.width / 2 - view.x) / view.z - NODE_W / 2, (r.height / 2 - view.y) / view.z - 36);
+}
+function deleteNode(id) {
+  pushHistory();
+  wf.nodes = wf.nodes.filter(n => n.id !== id);
+  wf.connections = wf.connections.filter(c => c.from !== id && c.to !== id);
+  delete runData[id];
+  if (sel.node === id) sel.node = null;
+  save(); renderAll();
+}
+function duplicateNode(id) {
+  const n = getNode(id); if (!n) return;
+  pushHistory();
+  const c = clone(n); c.id = uid(); c.x += 30; c.y += 110;
+  const base = n.name.replace(/ \d+$/, ""); let k = 2;
+  c.name = `${base} ${k}`;
+  while (wf.nodes.some(o => o.name === c.name)) c.name = `${base} ${++k}`;
+  wf.nodes.push(c);
+  sel = { node: c.id, conn: null };
+  save(); renderAll();
+}
+function deleteConn(id) {
+  pushHistory();
+  wf.connections = wf.connections.filter(c => c.id !== id);
+  sel.conn = null;
+  save(); renderEdges();
+}
+function connect(from, fromPort, to, toPort) {
+  if (from === to) return;
+  if (wf.connections.some(c => c.from === from && c.fromPort === fromPort && c.to === to && c.toPort === toPort)) return;
+  pushHistory();
+  wf.connections.push(link(from, to, fromPort, toPort));
+  if (hasCycle()) { wf.connections.pop(); undoStack.pop(); toast("That connection would create a loop"); }
+  save(); renderEdges();
+}
+function hasCycle() { return topoOrder() === null; }
+function topoOrder() {
+  const indeg = new Map(wf.nodes.map(n => [n.id, 0]));
+  wf.connections.forEach(c => indeg.set(c.to, indeg.get(c.to) + 1));
+  const q = wf.nodes.filter(n => indeg.get(n.id) === 0).sort((a, b) => a.x - b.x || a.y - b.y).map(n => n.id);
+  const order = [];
+  while (q.length) {
+    const id = q.shift(); order.push(id);
+    wf.connections.filter(c => c.from === id).sort((a, b) => a.fromPort - b.fromPort).forEach(c => {
+      indeg.set(c.to, indeg.get(c.to) - 1);
+      if (indeg.get(c.to) === 0) q.push(c.to);
+    });
+  }
+  return order.length === wf.nodes.length ? order : null;
+}
+
+/* ---------------- execution ---------------- */
+function log(level, msg) {
+  const t = new Date().toLocaleTimeString([], { hour12: false });
+  const tag = { ok: "OK", err: "ERROR", info: "INFO", skip: "SKIP" }[level] || level;
+  const line = document.createElement("div");
+  line.className = "log-line";
+  line.innerHTML = `<span class="ts">${t}</span><span class="lv-${level}">${tag}</span><span class="msg">${esc(msg)}</span>`;
+  const body = $("#log-body");
+  body.appendChild(line);
+  body.scrollTop = body.scrollHeight;
+}
+
+async function execute() {
+  if (running) return;
+  const order = topoOrder();
+  if (!order) return toast("This workflow has a loop. Remove a connection and try again.");
+  const triggers = wf.nodes.filter(n => TYPES[n.type].inputs === 0 && !n.disabled);
+  if (!triggers.length) return toast("Add a trigger node (Manual Trigger, Schedule or Webhook) to start the workflow.");
+  running = true;
+  const btn = $("#btn-run");
+  btn.disabled = true; btn.querySelector("span").textContent = "Running…";
+  runData = {};
+  renderNodes(); renderEdges();
+  const t0 = performance.now();
+  log("info", `Started "${wf.name}"`);
+  const outputs = {};
+  const nodeRefs = {};
+  let ok = 0, failed = null;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  for (const id of order) {
+    const node = getNode(id), def = TYPES[node.type];
+    const inputs = Array.from({ length: def.inputs }, () => []);
+    let fed = false;
+    for (const c of wf.connections.filter(c => c.to === id)) {
+      const src = outputs[c.from]?.[c.fromPort];
+      if (src) { inputs[c.toPort].push(...clone(src)); if (src.length) fed = true; }
+    }
+    if (def.inputs > 0 && !fed) { runData[id] = { status: "skipped", input: inputs }; renderNode(node); log("skip", `${node.name}: no items reached this node`); continue; }
+    if (node.disabled) {
+      outputs[id] = outsOf(node).map((_, i) => (i === 0 ? inputs[0] || [] : []));
+      runData[id] = { status: "skipped", input: inputs, output: outputs[id] };
+      renderNode(node); log("skip", `${node.name}: disabled, items passed through`); continue;
+    }
+    runData[id] = { status: "running", input: inputs };
+    renderNode(node);
+    if (!reduce) await sleep(160);
+    const items = inputs[0] || [];
+    const exprCtx = (it, i) => ({ json: it?.json || {}, index: i, items, node: nodeRefs });
+    const ctx = {
+      node, params: node.params, inputs, items, nodeRefs,
+      res: (v, it, i) => resolve(v, exprCtx(it, i)),
+      cond: (code, it, i) => !!evalExpr(stripBraces(code), exprCtx(it, i)),
+    };
+    const s = performance.now();
+    try {
+      const out = (await def.run(ctx)).map(normalizeItems);
+      while (out.length < outsOf(node).length) out.push([]);
+      outputs[id] = out;
+      const ms = Math.round(performance.now() - s);
+      runData[id] = { status: "success", input: inputs, output: out, ms };
+      const all = out.flat();
+      nodeRefs[node.name] = { json: all[0]?.json ?? {}, all: all.map(i => i.json) };
+      const outs = outsOf(node);
+      const desc = outs.length > 1 ? out.map((o, i) => `${outs[i]} ${o.length}`).join(", ") : `${out[0].length} item${out[0].length === 1 ? "" : "s"}`;
+      log("ok", `${node.name}: ${desc} (${ms} ms)`);
+      ok++;
+    } catch (err) {
+      runData[id] = { status: "error", input: inputs, error: err.message, ms: Math.round(performance.now() - s) };
+      log("err", `${node.name}: ${err.message}`);
+      failed = node;
+    }
+    renderNode(node); renderEdges();
+    if (sel.node === id) renderInspector();
+    if (failed) break;
+  }
+  const secs = ((performance.now() - t0) / 1000).toFixed(2);
+  const summary = failed ? `Stopped at "${failed.name}" after ${secs}s` : `Succeeded: ${ok} node${ok === 1 ? "" : "s"} ran in ${secs}s`;
+  $("#log-sum").textContent = `${summary} · ${new Date().toLocaleTimeString([], { hour12: false })}`;
+  log(failed ? "err" : "ok", summary);
+  running = false;
+  btn.disabled = false; btn.querySelector("span").textContent = "Execute workflow";
+  renderNodes(); renderEdges(); renderInspector();
+  if (failed) { sel = { node: failed.id, conn: null }; inspTab = "output"; renderNodes(); renderInspector(); }
+  toast(summary);
+}
+
+/* ---------------- inspector ---------------- */
+function fieldHTML(f, val) {
+  const id = `p-${f.key}`;
+  const help = f.help ? `<div class="help">${f.help}</div>` : "";
+  if (f.type === "checkbox")
+    return `<div class="field"><label class="check"><input type="checkbox" id="${id}" data-key="${f.key}" ${val ? "checked" : ""}> ${esc(f.label)}</label>${help}</div>`;
+  let input;
+  if (f.type === "select") input = `<select id="${id}" data-key="${f.key}">${f.options.map(o => `<option ${o === val ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+  else if (f.type === "number") input = `<input type="number" id="${id}" data-key="${f.key}" value="${esc(val)}">`;
+  else if (f.type === "code" || f.type === "json") input = `<textarea class="mono" id="${id}" data-key="${f.key}" data-kind="${f.type}" rows="${f.rows || 6}" spellcheck="false">${esc(val)}</textarea>`;
+  else input = `<input type="text" id="${id}" data-key="${f.key}" class="${f.mono ? "mono" : ""}" value="${esc(val)}" spellcheck="false">`;
+  return `<div class="field"><label for="${id}">${esc(f.label)}</label>${input}${help}</div>`;
+}
+function jsonHTML(v) {
+  return esc(JSON.stringify(v, null, 2)).replace(/(&quot;(?:[^&]|&(?!quot;))*?&quot;)(\s*:)?|\b(true|false|null)\b|(-?\b\d+(?:\.\d+)?(?:e[+-]?\d+)?\b)/g,
+    (m, str, colon, bool, num) => str ? `<span class="${colon ? "j-k" : "j-s"}">${str}</span>${colon || ""}` : bool ? `<span class="j-b">${bool}</span>` : `<span class="j-n">${num}</span>`);
+}
+function tableHTML(items) {
+  const cols = [];
+  items.slice(0, 100).forEach(it => Object.keys(it.json || {}).forEach(k => { if (!cols.includes(k)) cols.push(k); }));
+  if (!cols.length) return `<div class="empty">${items.length} item${items.length === 1 ? "" : "s"} with no fields.</div>`;
+  const cell = v => {
+    if (v === undefined) return `<td></td>`;
+    if (typeof v === "number") return `<td class="num">${v}</td>`;
+    const s = typeof v === "object" ? JSON.stringify(v) : String(v);
+    return `<td title="${esc(s)}">${esc(s.length > 80 ? s.slice(0, 80) + "…" : s)}</td>`;
+  };
+  return `<div class="tablewrap"><table class="data"><thead><tr><th>#</th>${cols.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>` +
+    items.slice(0, 300).map((it, i) => `<tr><td class="idx">${i}</td>${cols.map(c => cell(it.json?.[c])).join("")}</tr>`).join("") +
+    `</tbody></table></div>${items.length > 300 ? `<div class="meta">Showing 300 of ${items.length} items</div>` : ""}`;
+}
+function dataHTML(groups, labels, empty) {
+  if (!groups) return `<div class="empty">${empty}</div>`;
+  const pv = clamp(portView, 0, groups.length - 1);
+  const items = groups[pv] || [];
+  const portChips = groups.length > 1 ? groups.map((g, i) =>
+    `<button class="chip" data-port-view="${i}" aria-pressed="${i === pv}">${esc(labels[i])} · ${g.length}</button>`).join("") : `<span class="meta">${items.length} item${items.length === 1 ? "" : "s"}</span>`;
+  const modes = `<span class="grow"></span><button class="chip" data-mode="table" aria-pressed="${dataMode === "table"}">Table</button><button class="chip" data-mode="json" aria-pressed="${dataMode === "json"}">JSON</button>`;
+  const body = !items.length ? `<div class="empty">No items on this ${groups.length > 1 ? "branch" : "output"}.</div>`
+    : dataMode === "json" ? `<pre class="json">${jsonHTML(items.map(i => i.json))}</pre>` : tableHTML(items);
+  return `<div class="chips">${portChips}${modes}</div>${body}`;
+}
+function renderInspector() {
+  const el = $("#inspector"), n = selNode();
+  if (!n) { el.hidden = true; return; }
+  el.hidden = false;
+  const d = TYPES[n.type], rd = runData[n.id];
+  const outCount = rd?.output ? rd.output.reduce((s, o) => s + o.length, 0) : null;
+  const inCount = rd?.input ? rd.input.reduce((s, o) => s + o.length, 0) : null;
+  const tabs = [["params", "Parameters", null], ...(d.inputs ? [["input", "Input", inCount]] : []), ["output", "Output", outCount]];
+  if (inspTab === "input" && !d.inputs) inspTab = "params";
+  let body = "";
+  if (inspTab === "params") {
+    body = d.params.length ? d.params.map(f => fieldHTML(f, n.params[f.key])).join("") : `<div class="empty">This node has no settings.</div>`;
+    if (d.params.some(f => f.type === "code" || f.type === "text"))
+      body += `<div class="tip">Wrap JavaScript in <code>{{ }}</code> to use data from the incoming item, e.g. <code>{{ $json.customer }}</code>. Other nodes: <code>{{ $node['Open tickets'].json.id }}</code>.</div>`;
+    body += `<label class="check"><input type="checkbox" id="node-disabled" ${n.disabled ? "checked" : ""}> Disable this node (items pass straight through)</label>`;
+  } else if (inspTab === "input") {
+    body = dataHTML(rd?.input, d.inputs > 1 ? Array.from({ length: d.inputs }, (_, i) => `Input ${i + 1}`) : ["main"], "Execute the workflow to see the items this node receives.");
+  } else {
+    if (rd?.status === "error") body = `<div class="errbox">${esc(rd.error)}</div>`;
+    else if (rd?.status === "skipped" && !rd.output) body = `<div class="empty">This node was skipped because no items reached it on the last run.</div>`;
+    else body = dataHTML(rd?.output, outsOf(n), "Execute the workflow to see this node's output.");
+    if (rd?.ms != null) body += `<div class="meta">Ran in ${rd.ms} ms</div>`;
+  }
+  el.innerHTML = `
+    <div class="insp-head">
+      <div class="glyph cat-${d.cat}">${d.glyph}</div>
+      <div class="insp-title"><input id="node-name" value="${esc(n.name)}" aria-label="Node name" spellcheck="false"><div class="sub">${esc(d.label)}</div></div>
+      <button class="icon-btn" data-act="dup" title="Duplicate (Ctrl+D)">Duplicate</button>
+      <button class="icon-btn danger" data-act="del" title="Delete (Del)">Delete</button>
+      <button class="icon-btn" data-act="close" aria-label="Close settings">✕</button>
+    </div>
+    <p class="insp-desc">${esc(d.desc)}</p>
+    <div class="tabs" role="tablist">${tabs.map(([k, label, c]) =>
+      `<button role="tab" data-tab="${k}" aria-selected="${inspTab === k}">${label}${c != null ? `<span class="n">${c}</span>` : ""}</button>`).join("")}</div>
+    <div class="insp-body">${body}</div>`;
+}
+
+const inspector = $("#inspector");
+let paramSnapshotTaken = false;
+inspector.addEventListener("focusin", e => {
+  if (e.target.matches("[data-key], #node-name") && !paramSnapshotTaken) { pushHistory(); paramSnapshotTaken = true; }
+});
+inspector.addEventListener("focusout", () => { paramSnapshotTaken = false; });
+inspector.addEventListener("input", e => {
+  const n = selNode(); if (!n) return;
+  const t = e.target;
+  if (t.id === "node-name") { n.name = t.value || TYPES[n.type].label; renderNode(n); save(); return; }
+  const key = t.dataset.key; if (!key) return;
+  let v = t.type === "checkbox" ? t.checked : t.type === "number" ? (t.value === "" ? "" : Number(t.value)) : t.value;
+  if (t.dataset.kind === "json") {
+    try { JSON.parse(String(v).replace(/\{\{[\s\S]*?\}\}/g, "0") || "{}"); t.classList.remove("bad"); } catch { t.classList.add("bad"); }
+  }
+  n.params[key] = v;
+  if (n.type === "switch") { pruneConnections(); renderNode(n); renderEdges(); }
+  save();
+});
+inspector.addEventListener("change", e => {
+  const n = selNode(); if (!n) return;
+  if (e.target.id === "node-disabled") { pushHistory(); n.disabled = e.target.checked; renderNode(n); save(); }
+});
+inspector.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const n = selNode();
+  if (b.dataset.tab) { inspTab = b.dataset.tab; portView = 0; renderInspector(); }
+  else if (b.dataset.mode) { dataMode = b.dataset.mode; renderInspector(); }
+  else if (b.dataset.portView) { portView = +b.dataset.portView; renderInspector(); }
+  else if (b.dataset.act === "close") { sel.node = null; renderNodes(); renderInspector(); }
+  else if (b.dataset.act === "del" && n) deleteNode(n.id);
+  else if (b.dataset.act === "dup" && n) duplicateNode(n.id);
+});
+
+/* ---------------- canvas interaction ---------------- */
+let drag = null;
+function toWorld(cx, cy) {
+  const r = canvas.getBoundingClientRect();
+  return { x: (cx - r.left - view.x) / view.z, y: (cy - r.top - view.y) / view.z };
+}
+function selectNode(id) {
+  const changed = sel.node !== id;
+  sel = { node: id, conn: null };
+  if (changed) { inspTab = runData[id] ? "output" : "params"; portView = 0; }
+  $$(".node.selected", nodesEl).forEach(el => el.classList.remove("selected"));
+  if (id) nodesEl.querySelector(`.node[data-id="${CSS.escape(id)}"]`)?.classList.add("selected");
+  renderEdges();
+  if (changed) renderInspector();
+}
+
+canvas.addEventListener("pointerdown", e => {
+  if (e.pointerType === "mouse" && e.button !== 0 && e.button !== 1) return;
+  hidePopovers();
+  const port = e.target.closest(".port"), nodeEl = e.target.closest(".node");
+  const del = e.target.closest("[data-del]"), hit = e.target.closest(".edge-hit");
+  if (e.target.closest(".zoom")) return;
+  if (del) { deleteConn(del.dataset.del); return; }
+  if (port && nodeEl && port.classList.contains("out")) {
+    e.preventDefault();
+    const n = getNode(nodeEl.dataset.id), i = +port.dataset.port;
+    drag = { kind: "connect", from: n.id, fromPort: i };
+    tempEdge = { a: portPos(n, "out", i), b: toWorld(e.clientX, e.clientY) };
+    renderEdges();
+    return;
+  }
+  if (port && nodeEl && port.classList.contains("in")) {
+    // pick up an existing connection from an input so it can be moved
+    e.preventDefault();
+    const c = [...wf.connections].reverse().find(c => c.to === nodeEl.dataset.id && c.toPort === +port.dataset.port);
+    if (c) {
+      pushHistory();
+      wf.connections = wf.connections.filter(x => x !== c);
+      drag = { kind: "connect", from: c.from, fromPort: c.fromPort, detached: true };
+      tempEdge = { a: portPos(getNode(c.from), "out", c.fromPort), b: toWorld(e.clientX, e.clientY) };
+      renderEdges();
+    }
+    return;
+  }
+  if (hit) { sel = { node: null, conn: hit.dataset.conn }; renderNodes(); renderEdges(); renderInspector(); return; }
+  if (nodeEl) {
+    const n = getNode(nodeEl.dataset.id), p = toWorld(e.clientX, e.clientY);
+    selectNode(n.id);
+    drag = { kind: "node", id: n.id, ox: p.x - n.x, oy: p.y - n.y, moved: false, sx: e.clientX, sy: e.clientY };
+    return;
+  }
+  if (sel.node || sel.conn) { sel = { node: null, conn: null }; renderNodes(); renderEdges(); renderInspector(); }
+  drag = { kind: "pan", sx: e.clientX, sy: e.clientY, vx: view.x, vy: view.y };
+  canvas.classList.add("panning");
+});
+window.addEventListener("pointermove", e => {
+  if (!drag) return;
+  if (drag.kind === "pan") {
+    view.x = drag.vx + e.clientX - drag.sx; view.y = drag.vy + e.clientY - drag.sy; applyView();
+  } else if (drag.kind === "node") {
+    if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 4) return;
+    if (!drag.moved) { pushHistory(); drag.moved = true; }
+    const n = getNode(drag.id), p = toWorld(e.clientX, e.clientY);
+    n.x = Math.round((p.x - drag.ox) / 10) * 10; n.y = Math.round((p.y - drag.oy) / 10) * 10;
+    const el = nodesEl.querySelector(`.node[data-id="${CSS.escape(n.id)}"]`);
+    if (el) { el.style.left = n.x + "px"; el.style.top = n.y + "px"; }
+    renderEdges();
+  } else if (drag.kind === "connect") {
+    tempEdge.b = toWorld(e.clientX, e.clientY);
+    $$(".port.hot").forEach(p => p.classList.remove("hot"));
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    under?.closest(".port.in")?.classList.add("hot");
+    renderEdges();
+  }
+});
+window.addEventListener("pointerup", e => {
+  if (!drag) return;
+  const d = drag; drag = null;
+  canvas.classList.remove("panning");
+  if (d.kind === "node" && d.moved) save();
+  if (d.kind !== "connect") return;
+  tempEdge = null;
+  $$(".port.hot").forEach(p => p.classList.remove("hot"));
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  const inPort = under?.closest(".port.in"), nodeEl = under?.closest(".node");
+  if (inPort && nodeEl) connect(d.from, d.fromPort, nodeEl.dataset.id, +inPort.dataset.port);
+  else if (nodeEl && TYPES[getNode(nodeEl.dataset.id).type].inputs > 0) connect(d.from, d.fromPort, nodeEl.dataset.id, 0);
+  else if (under && canvas.contains(under) && !d.detached) openQuickAdd(e.clientX, e.clientY, { id: d.from, port: d.fromPort });
+  else { if (d.detached) save(); renderEdges(); }
+});
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect();
+  if (e.ctrlKey || e.metaKey) zoomAt(view.z * Math.exp(-e.deltaY * 0.01), e.clientX - r.left, e.clientY - r.top);
+  else { view.x -= e.deltaX; view.y -= e.deltaY; applyView(); }
+}, { passive: false });
+canvas.addEventListener("dblclick", e => {
+  if (e.target.closest(".node, .zoom")) return;
+  openQuickAdd(e.clientX, e.clientY, null);
+});
+function zoomAt(z, mx, my) {
+  z = clamp(z, 0.3, 2);
+  view.x = mx - (mx - view.x) * (z / view.z);
+  view.y = my - (my - view.y) * (z / view.z);
+  view.z = z; applyView();
+}
+function fitView() {
+  const r = canvas.getBoundingClientRect();
+  if (!wf.nodes.length || !r.width) { view = { x: 40, y: 40, z: 1 }; return applyView(); }
+  const minX = Math.min(...wf.nodes.map(n => n.x)), minY = Math.min(...wf.nodes.map(n => n.y)) - 20;
+  const maxX = Math.max(...wf.nodes.map(n => n.x + NODE_W)) + 60, maxY = Math.max(...wf.nodes.map(n => n.y + nodeH(n)));
+  const z = clamp(Math.min((r.width - 80) / (maxX - minX), (r.height - 80) / (maxY - minY)), 0.35, 1.1);
+  view = { z, x: (r.width - (maxX - minX) * z) / 2 - minX * z, y: (r.height - (maxY - minY) * z) / 2 - minY * z };
+  applyView();
+}
+$("#zoom-in").onclick = () => { const r = canvas.getBoundingClientRect(); zoomAt(view.z * 1.2, r.width / 2, r.height / 2); };
+$("#zoom-out").onclick = () => { const r = canvas.getBoundingClientRect(); zoomAt(view.z / 1.2, r.width / 2, r.height / 2); };
+$("#zoom-fit").onclick = fitView;
+
+nodesEl.addEventListener("keydown", e => {
+  const el = e.target.closest(".node");
+  if (el && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); selectNode(el.dataset.id); }
+});
+
+/* drag from palette */
+$("#palette-list").addEventListener("dragstart", e => {
+  const b = e.target.closest(".pitem"); if (!b) return;
+  e.dataTransfer.setData("text/plain", b.dataset.type);
+  e.dataTransfer.effectAllowed = "copy";
+});
+canvas.addEventListener("dragover", e => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; });
+canvas.addEventListener("drop", e => {
+  e.preventDefault();
+  const type = e.dataTransfer.getData("text/plain");
+  if (!TYPES[type]) return;
+  const p = toWorld(e.clientX, e.clientY);
+  addNode(type, p.x - NODE_W / 2, p.y - 36);
+});
+$("#palette-list").addEventListener("click", e => {
+  const b = e.target.closest(".pitem"); if (!b) return;
+  addNodeSmart(b.dataset.type);
+  $("#palette").classList.remove("open");
+});
+$("#palette-search").addEventListener("input", renderPalette);
+
+/* ---------------- popovers ---------------- */
+let quickCtx = null;
+function placePopover(el, x, y) {
+  el.hidden = false;
+  const w = el.offsetWidth, h = el.offsetHeight;
+  el.style.left = clamp(x, 12, innerWidth - w - 12) + "px";
+  el.style.top = clamp(y, 12, innerHeight - h - 12) + "px";
+}
+function openQuickAdd(cx, cy, from) {
+  quickCtx = { world: toWorld(cx, cy), from };
+  $("#quick-search").value = "";
+  $("#quick-list").innerHTML = paletteHTML("", !!from);
+  placePopover($("#pop-quick"), cx, cy);
+  $("#quick-search").focus();
+  renderEdges();
+}
+$("#quick-search").addEventListener("input", e => { $("#quick-list").innerHTML = paletteHTML(e.target.value, !!quickCtx?.from); });
+$("#quick-search").addEventListener("keydown", e => {
+  if (e.key === "Enter") { const first = $("#quick-list .pitem"); if (first) first.click(); }
+  if (e.key === "Escape") hidePopovers();
+});
+$("#quick-list").addEventListener("click", e => {
+  const b = e.target.closest(".pitem"); if (!b || !quickCtx) return;
+  const { world: p, from } = quickCtx;
+  hidePopovers();
+  addNode(b.dataset.type, p.x, p.y - 36, from);
+});
+function hidePopovers() { $("#pop-quick").hidden = true; $("#pop-templates").hidden = true; quickCtx = null; }
+document.addEventListener("pointerdown", e => {
+  if (!e.target.closest(".popover, #btn-templates") && !canvas.contains(e.target)) hidePopovers();
+  if (!e.target.closest("#palette, #btn-palette")) $("#palette").classList.remove("open");
+});
+
+$("#btn-templates").onclick = e => {
+  const pop = $("#pop-templates");
+  if (!pop.hidden) return hidePopovers();
+  pop.innerHTML = `<div class="pop-list">${TEMPLATES.map((t, i) => `<button class="tpl" role="menuitem" data-tpl="${i}"><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></button>`).join("")}</div>`;
+  const r = e.currentTarget.getBoundingClientRect();
+  placePopover(pop, r.right - 300, r.bottom + 6);
+};
+$("#pop-templates").addEventListener("click", e => {
+  const b = e.target.closest("[data-tpl]"); if (!b) return;
+  pushHistory();
+  const t = TEMPLATES[+b.dataset.tpl];
+  loadWorkflow(t.build());
+  hidePopovers(); save(); renderAll(); fitView();
+  log("info", `Loaded template "${t.name}"`);
+  toast(`Loaded "${t.name}". Undo restores your previous workflow.`);
+});
+
+/* ---------------- modals ---------------- */
+function openModal(html) {
+  const m = $("#modal");
+  m.innerHTML = `<div class="modal" role="dialog" aria-modal="true">${html}</div>`;
+  m.hidden = false;
+  m.querySelector("textarea, button")?.focus();
+}
+function closeModal() { $("#modal").hidden = true; $("#modal").innerHTML = ""; }
+$("#modal").addEventListener("click", e => { if (e.target.id === "modal" || e.target.closest("[data-close]")) closeModal(); });
+
+$("#btn-export").onclick = () => {
+  const json = JSON.stringify({ app: "flowsmith", version: 1, ...wf }, null, 2);
+  openModal(`<h2>Export workflow</h2><p>Copy this JSON to back up the workflow or share it. Paste it into Import to load it again.</p>
+    <textarea id="export-text" readonly spellcheck="false">${esc(json)}</textarea>
+    <div class="foot"><span class="note" id="export-note"></span><button class="btn" data-close>Close</button><button class="btn primary" id="export-copy">Copy JSON</button></div>`);
+  $("#export-copy").onclick = () => {
+    const ta = $("#export-text");
+    const fallback = () => { ta.select(); $("#export-note").textContent = "Press Ctrl+C (or Cmd+C) to copy the selected text."; };
+    if (!navigator.clipboard) return fallback();
+    navigator.clipboard.writeText(ta.value).then(() => ($("#export-note").textContent = "Copied to clipboard."), fallback);
+  };
+};
+$("#btn-import").onclick = () => {
+  openModal(`<h2>Import workflow</h2><p>Paste workflow JSON exported from Flowsmith, or choose a .json file.</p>
+    <textarea id="import-text" spellcheck="false" placeholder='{ "name": "...", "nodes": [...], "connections": [...] }'></textarea>
+    <div class="foot"><span class="note" id="import-note"></span><input type="file" id="import-file" accept=".json,application/json" aria-label="Choose JSON file">
+      <button class="btn" data-close>Cancel</button><button class="btn primary" id="import-go">Load workflow</button></div>`);
+  $("#import-file").onchange = async e => { const f = e.target.files[0]; if (f) $("#import-text").value = await f.text(); };
+  $("#import-go").onclick = () => {
+    const note = $("#import-note");
+    try {
+      const data = JSON.parse($("#import-text").value);
+      if (!Array.isArray(data.nodes)) throw new Error('Missing a "nodes" list.');
+      const known = data.nodes.filter(n => TYPES[n.type]).length;
+      if (!known) throw new Error("None of the nodes are types Flowsmith knows.");
+      pushHistory(); loadWorkflow(data); save(); renderAll(); fitView(); closeModal();
+      toast(`Imported "${wf.name}" with ${wf.nodes.length} nodes`);
+    } catch (err) { note.className = "note err"; note.textContent = `Couldn't import: ${err.message}`; }
+  };
+};
+
+/* ---------------- toolbar + keys ---------------- */
+let toastTimer;
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), 3200);
+}
+$("#btn-run").onclick = execute;
+$("#btn-undo").onclick = undo;
+$("#btn-palette").onclick = () => $("#palette").classList.toggle("open");
+$("#wf-name").addEventListener("input", e => { wf.name = e.target.value; save(); });
+$("#log-clear").onclick = () => { $("#log-body").innerHTML = ""; };
+$("#log-toggle").onclick = e => {
+  const c = $("#log").classList.toggle("collapsed");
+  e.target.textContent = c ? "Show" : "Hide"; e.target.setAttribute("aria-expanded", String(!c));
+};
+document.addEventListener("keydown", e => {
+  const typing = e.target.closest("input, textarea, select, [contenteditable]");
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key === "Enter") { e.preventDefault(); execute(); return; }
+  if (e.key === "Escape") { hidePopovers(); closeModal(); if (!typing && sel.node) { sel.node = null; renderNodes(); renderInspector(); } return; }
+  if (typing) return;
+  if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); }
+  else if (mod && e.key.toLowerCase() === "d" && sel.node) { e.preventDefault(); duplicateNode(sel.node); }
+  else if (e.key === "Delete" || e.key === "Backspace") {
+    if (sel.node) deleteNode(sel.node); else if (sel.conn) deleteConn(sel.conn);
+  } else if (e.key === "f" && !mod) fitView();
+});
+
+/* ---------------- boot ---------------- */
+(function boot() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch { saved = null; }
+  loadWorkflow(saved && Array.isArray(saved.nodes) && saved.nodes.length ? saved : TEMPLATES[0].build());
+  renderPalette();
+  renderAll();
+  requestAnimationFrame(() => {
+    fitView();
+    if (!wf.nodes.some(n => n.type === "http")) execute();
+  });
+})();
+</script>
+</body>
+</html>
